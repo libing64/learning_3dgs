@@ -188,7 +188,7 @@ class Simple3DGSViewer:
         rendered_image, radii = rasterizer(
             means3D=means3D,
             means2D=None,
-            sh=shs,
+            shs=shs,
             colors_precomp=colors_precomp,
             opacities=opacity,
             scales=scales,

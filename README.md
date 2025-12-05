@@ -55,16 +55,88 @@ pip install .
 cd ..
 ```
 
+## 获取测试模型
+
+### 方法1: 创建虚拟测试模型（快速测试）
+
+```bash
+# 创建一个包含 1000 个高斯点的测试模型
+python create_dummy_model.py
+
+# 或者使用下载脚本
+python download_model.py --create-dummy
+```
+
+这会在 `test_models/dummy_model/point_cloud.ply` 创建一个测试模型。
+
+### 方法2: 从官方源下载
+
+```bash
+# 查看下载选项
+python download_model.py --help
+
+# 或查看说明
+./download_test_model.sh
+```
+
+### 方法3: 使用自己的训练模型
+
+如果您已经训练了 3DGS 模型，可以直接使用。
+
+## 安装 diff-gaussian-rasterization
+
+**重要**: viewer 需要 `diff-gaussian-rasterization` 库才能运行。安装方法：
+
+```bash
+# 方法1: 使用安装脚本（推荐，会自动处理 CUDA 版本问题）
+./install_rasterizer.sh
+
+# 方法2: 手动安装
+conda activate 3dgs_viewer
+
+# 先安装 simple-knn (依赖)
+git clone https://github.com/graphdeco-inria/simple-knn.git
+cd simple-knn
+pip install . --no-build-isolation
+cd ..
+
+# 安装 diff-gaussian-rasterization
+git clone --recursive https://github.com/graphdeco-inria/diff-gaussian-rasterization.git
+cd diff-gaussian-rasterization
+pip install . --no-build-isolation
+cd ..
+```
+
+**注意**: 如果遇到 CUDA 版本不匹配错误（如 "CUDA version mismatches"），安装脚本会自动应用补丁。如果手动安装，可能需要：
+1. 使用 `--no-build-isolation` 标志
+2. 或者运行 `python patch_cuda_check.py` 来临时禁用 CUDA 版本检查
+
 ## 使用方法
 
 ### 基本用法
 
+**重要**: 确保正确激活 conda 环境：
+
 ```bash
-# 激活环境
+# 激活环境（必须）
 conda activate 3dgs_viewer
 
-# 运行 viewer
+# 验证 Python 路径
+which python
+# 应该显示: /path/to/conda/envs/3dgs_viewer/bin/python
+
+# 运行 viewer（使用测试模型）
+python viewer.py test_models/dummy_model
+
+# 或使用自己的模型
 python viewer.py <模型路径>
+```
+
+**如果环境没有正确激活**，可以使用：
+
+```bash
+# 使用 conda run 直接运行（无需手动激活）
+conda run -n 3dgs_viewer python viewer.py test_models/dummy_model --simple
 ```
 
 ### 参数说明
