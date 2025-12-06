@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3DGS Web Viewer</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            overflow: hidden;
+            background: #1a1a1a;
+            color: #fff;
+        }
+        
+        #canvas-container {
+            width: 100vw;
+            height: 100vh;
+            position: relative;
+        }
+        
+        #info-panel {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 15px;
+            border-radius: 8px;
+            font-size: 14px;
+            z-index: 100;
+            min-width: 200px;
+        }
+        
+        #info-panel h3 {
+            margin-bottom: 10px;
+            color: #4CAF50;
+        }
+        
+        #info-panel p {
+            margin: 5px 0;
+        }
+        
+        #controls {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 15px;
+            border-radius: 8px;
+            z-index: 100;
+            min-width: 200px;
+        }
+        
+        #controls h3 {
+            margin-bottom: 10px;
+            color: #2196F3;
+        }
+        
+        .control-group {
+            margin: 10px 0;
+        }
+        
+        .control-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-size: 12px;
+        }
+        
+        .control-group input[type="range"] {
+            width: 100%;
+        }
+        
+        .control-group input[type="number"] {
+            width: 60px;
+            padding: 3px;
+            background: #333;
+            color: #fff;
+            border: 1px solid #555;
+            border-radius: 3px;
+        }
+        
+        #loading {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            z-index: 200;
+        }
+        
+        .spinner {
+            border: 4px solid #333;
+            border-top: 4px solid #4CAF50;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        #error {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(244, 67, 54, 0.9);
+            padding: 20px;
+            border-radius: 8px;
+            z-index: 200;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div id="canvas-container">
+        <div id="loading">
+            <div class="spinner"></div>
+            <p>Loading model...</p>
+        </div>
+        <div id="error">
+            <h3>Error</h3>
+            <p id="error-message"></p>
+        </div>
+        
+        <div id="info-panel">
+            <h3>Model Info</h3>
+            <p id="point-count">Points: -</p>
+            <p id="fps">FPS: -</p>
+        </div>
+        
+        <div id="controls">
+            <h3>Controls</h3>
+            <div class="control-group">
+                <label>Point Size: <span id="point-size-value">1.0</span></label>
+                <input type="range" id="point-size" min="0.1" max="5" step="0.1" value="1.0">
+            </div>
+            <div class="control-group">
+                <label>Opacity: <span id="opacity-value">1.0</span></label>
+                <input type="range" id="opacity" min="0" max="1" step="0.01" value="1.0">
+            </div>
+            <div class="control-group">
+                <label>Background: <span id="bg-value">0.0</span></label>
+                <input type="range" id="background" min="0" max="1" step="0.01" value="0.0">
+            </div>
+            <div class="control-group">
+                <button id="reset-camera" style="width: 100%; padding: 8px; background: #4CAF50; color: white; border: none; border-radius: 4px; cursor: pointer;">
+                    Reset Camera
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <script>
+        // 全局变量
+        let scene, camera, renderer, controls;
+        let points, modelData;
+        let frameCount = 0;
+        let lastTime = performance.now();
+        
+        // 初始化 Three.js 场景
+        function initScene() {
+            const container = document.getElementById('canvas-container');
+            
+            // 创建场景
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x000000);
+            
+            // 创建相机
+            camera = new THREE.PerspectiveCamera(
+                75,
+                window.innerWidth / window.innerHeight,
+                0.1,
+                1000
+            );
+            camera.position.set(0, 0, 5);
+            
+            // 创建渲染器
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(window.devicePixelRatio);
+            container.appendChild(renderer.domElement);
+            
+            // 添加轨道控制器
+            controls = new THREE.OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+            controls.dampingFactor = 0.05;
+            
+            // 窗口大小调整
+            window.addEventListener('resize', onWindowResize);
+        }
+        
+        // 加载模型数据
+        async function loadModel() {
+            try {
+                const response = await fetch('/api/model');
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                modelData = await response.json();
+                
+                console.log('Model loaded:', modelData.n_points, 'points');
+                createPoints();
+                updateInfo();
+                document.getElementById('loading').style.display = 'none';
+            } catch (error) {
+                console.error('Error loading model:', error);
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('error').style.display = 'block';
+                document.getElementById('error-message').textContent = error.message;
+            }
+        }
+        
+        // 创建点云
+        function createPoints() {
+            if (!modelData) return;
+            
+            const positions = new Float32Array(modelData.positions.flat());
+            const colors = new Float32Array(modelData.colors.flat());
+            
+            const geometry = new THREE.BufferGeometry();
+            geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+            geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+            
+            const material = new THREE.PointsMaterial({
+                size: parseFloat(document.getElementById('point-size').value),
+                vertexColors: true,
+                opacity: parseFloat(document.getElementById('opacity').value),
+                transparent: true
+            });
+            
+            points = new THREE.Points(geometry, material);
+            scene.add(points);
+            
+            // 计算边界框并调整相机
+            geometry.computeBoundingBox();
+            const box = geometry.boundingBox;
+            const center = box.getCenter(new THREE.Vector3());
+            const size = box.getSize(new THREE.Vector3());
+            
+            // 调整相机位置
+            const maxDim = Math.max(size.x, size.y, size.z);
+            camera.position.set(
+                center.x + maxDim,
+                center.y + maxDim,
+                center.z + maxDim
+            );
+            camera.lookAt(center);
+            controls.target.copy(center);
+            controls.update();
+        }
+        
+        // 更新信息面板
+        function updateInfo() {
+            if (modelData) {
+                document.getElementById('point-count').textContent = `Points: ${modelData.n_points.toLocaleString()}`;
+            }
+        }
+        
+        // 动画循环
+        function animate() {
+            requestAnimationFrame(animate);
+            
+            controls.update();
+            renderer.render(scene, camera);
+            
+            // 计算 FPS
+            frameCount++;
+            const currentTime = performance.now();
+            if (currentTime >= lastTime + 1000) {
+                const fps = Math.round(frameCount * 1000 / (currentTime - lastTime));
+                document.getElementById('fps').textContent = `FPS: ${fps}`;
+                frameCount = 0;
+                lastTime = currentTime;
+            }
+        }
+        
+        // 窗口大小调整
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+        
+        // 控制面板事件
+        document.getElementById('point-size').addEventListener('input', (e) => {
+            const value = parseFloat(e.target.value);
+            document.getElementById('point-size-value').textContent = value.toFixed(1);
+            if (points) {
+                points.material.size = value;
+            }
+        });
+        
+        document.getElementById('opacity').addEventListener('input', (e) => {
+            const value = parseFloat(e.target.value);
+            document.getElementById('opacity-value').textContent = value.toFixed(2);
+            if (points) {
+                points.material.opacity = value;
+            }
+        });
+        
+        document.getElementById('background').addEventListener('input', (e) => {
+            const value = parseFloat(e.target.value);
+            document.getElementById('bg-value').textContent = value.toFixed(2);
+            scene.background = new THREE.Color(value, value, value);
+        });
+        
+        document.getElementById('reset-camera').addEventListener('click', () => {
+            if (points && points.geometry.boundingBox) {
+                const box = points.geometry.boundingBox;
+                const center = box.getCenter(new THREE.Vector3());
+                const size = box.getSize(new THREE.Vector3());
+                const maxDim = Math.max(size.x, size.y, size.z);
+                
+                camera.position.set(
+                    center.x + maxDim,
+                    center.y + maxDim,
+                    center.z + maxDim
+                );
+                camera.lookAt(center);
+                controls.target.copy(center);
+                controls.update();
+            }
+        });
+        
+        // 初始化
+        initScene();
+        loadModel();
+        animate();
+    </script>
+</body>
+</html>
+

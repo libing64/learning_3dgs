@@ -183,12 +183,46 @@ Viewer 支持以下模型路径格式：
 - **鼠标滚轮**: 缩放
 - **ESC 或关闭窗口**: 退出
 
+## Web Viewer
+
+项目还包含一个基于 Web 的查看器，可以在浏览器中交互式查看 3DGS 模型。
+
+### 启动 Web Viewer
+
+```bash
+# 激活环境
+conda activate 3dgs_viewer
+
+# 启动 Web 服务器
+python web_viewer.py <模型路径> [--port 5000]
+
+# 例如
+python web_viewer.py test_models/dummy_model/point_cloud.ply
+```
+
+然后在浏览器中打开 `http://localhost:5000` 即可查看模型。
+
+### Web Viewer 功能
+
+- **交互式查看**: 使用鼠标拖拽旋转、滚轮缩放
+- **实时控制**: 调整点大小、透明度、背景色
+- **性能监控**: 显示 FPS 和模型信息
+- **响应式设计**: 适配不同屏幕尺寸
+
+### Web Viewer 参数
+
+- `model_path`: 3DGS 模型路径（目录或 .ply 文件）
+- `--port`: 服务器端口（默认: 5000）
+- `--host`: 服务器主机（默认: 0.0.0.0）
+
 ## 文件说明
 
-- `viewer.py`: 主程序文件
+- `viewer.py`: 命令行查看器主程序
+- `web_viewer.py`: Web 查看器服务器
+- `web_viewer_static/`: Web 前端文件目录
 - `requirements.txt`: Python 依赖包列表
 - `setup_env.sh`: Linux/Mac 环境设置脚本
-- `setup_env.bat`: Windows 环境设置脚本
+- `install_rasterizer.sh`: 安装 rasterizer 的脚本
 
 ## 注意事项
 
@@ -258,3 +292,72 @@ glTF扩展(发展中) 遵循开放标准，易于集成到现代3D应用和引�
   • 形态与透明度：scale_*（缩放因子，决定高斯椭球的形状大小）、rot_*（旋转四元数，决定高斯椭球的方向）和 opacity（不透明度）。
 
 • 关键设计：文件存储的是参数的原始优化值（例如缩放因子存储的是指数计算前的值），而不是经过激活函数（如Sigmoid、指数函数）处理后的最终值。这样设计是为了保证模型被加载后，可以直接继续投入训练。
+
+```
+ply
+format binary_little_endian 1.0
+element vertex 500
+property float x
+property float y
+property float z
+property float nx
+property float ny
+property float nz
+property float f_dc_0
+property float f_dc_1
+property float f_dc_2
+property float opacity
+property float scale_0
+property float scale_1
+property float scale_2
+property float rot_0
+property float rot_1
+property float rot_2
+property float rot_3
+property float f_rest_0
+property float f_rest_1
+property float f_rest_2
+property float f_rest_3
+property float f_rest_4
+property float f_rest_5
+property float f_rest_6
+property float f_rest_7
+property float f_rest_8
+property float f_rest_9
+property float f_rest_10
+property float f_rest_11
+property float f_rest_12
+property float f_rest_13
+property float f_rest_14
+property float f_rest_15
+property float f_rest_16
+property float f_rest_17
+property float f_rest_18
+property float f_rest_19
+property float f_rest_20
+property float f_rest_21
+property float f_rest_22
+property float f_rest_23
+property float f_rest_24
+property float f_rest_25
+property float f_rest_26
+property float f_rest_27
+property float f_rest_28
+property float f_rest_29
+property float f_rest_30
+property float f_rest_31
+property float f_rest_32
+property float f_rest_33
+property float f_rest_34
+property float f_rest_35
+property float f_rest_36
+property float f_rest_37
+property float f_rest_38
+property float f_rest_39
+property float f_rest_40
+property float f_rest_41
+property float f_rest_42
+property float f_rest_43
+property float f_rest_44
+end_header
+```
